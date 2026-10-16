@@ -44,9 +44,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {        
         http
-                .csrf(csrf -> csrf.disable()) 
+                // CSRF habilitado (padrão do Spring Security): formulários e requisições
+                // de alteração precisam enviar o token, o que protege contra ataques CSRF
                 .authorizeHttpRequests(auth -> auth
 
                         // Público
