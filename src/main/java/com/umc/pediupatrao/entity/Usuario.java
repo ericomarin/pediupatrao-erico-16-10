@@ -9,7 +9,7 @@ public class Usuario {
     private String id;
     private String username; // Nome de usuário para login
     private String password; // Senha criptografada
-    private String role;     // Papel do usuário, como ADMIN ou USER
+    private Perfil role;     // Perfil de acesso (ADMIN, GERENTE ou ATENDENTE) - NEW
 
     public String getId() {
         return id;
@@ -35,13 +35,11 @@ public class Usuario {
         this.password = password;
     }
 
-    public String getRole() {
+    public Perfil getRole() {            
         return role;
     }
 
-    public void setRole(String role) {
+    public void setRole(Perfil role) {   
         this.role = role;
     }
-    
-    
 }
