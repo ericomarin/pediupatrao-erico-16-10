@@ -34,36 +34,44 @@ public class UsuarioController {
 
     // Endpoint para criar um novo usuário
     @PostMapping
-    public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario) {
-        usuarioService.salvarUsuario(usuario);
-        return ResponseEntity.status(HttpStatus.CREATED).body(usuario);
+    public ResponseEntity<?> criarUsuario(@RequestBody Usuario usuario) {
+        try {
+            usuarioService.salvarUsuario(usuario);
+            return ResponseEntity.status(HttpStatus.CREATED).body(usuario);
+        } catch (IllegalArgumentException e) {
+            // Dados inválidos (sem perfil, sem senha ou username repetido) retornam 400
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     // Endpoint para atualizar um usuário
     @PutMapping("/{id}")
-    public ResponseEntity<Usuario> atualizarUsuario(@PathVariable String id, @RequestBody Usuario usuarioAtualizado) {
-        Optional<Usuario> usuarioExistente = usuarioService.buscarPorId(id);
-
-        if (usuarioExistente.isPresent()) {
-            Usuario usuario = usuarioExistente.get();
-            usuario.setUsername(usuarioAtualizado.getUsername());
-            usuario.setPassword(usuarioAtualizado.getPassword());
-            usuarioService.salvarUsuario(usuario);
-
-            return ResponseEntity.ok(usuario);
-        } else {
+    public ResponseEntity<?> atualizarUsuario(@PathVariable String id, @RequestBody Usuario usuarioAtualizado) {
+        // A regra de atualização fica no service (inclui o bloqueio de autoelevação)
+        try {
+            usuarioService.atualizarUsuario(id, usuarioAtualizado);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            // Tentativa de alterar o próprio perfil retorna 403
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
     }
 
     // Endpoint para deletar um usuário
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletarUsuario(@PathVariable String id) {
+    public ResponseEntity<?> deletarUsuario(@PathVariable String id) {
         Optional<Usuario> usuarioExistente = usuarioService.buscarPorId(id);
 
         if (usuarioExistente.isPresent()) {
-            usuarioService.deletarUsuario(id);
-            return ResponseEntity.noContent().build();
+            try {
+                usuarioService.deletarUsuario(id);
+                return ResponseEntity.noContent().build();
+            } catch (IllegalStateException e) {
+                // Tentativa de excluir o próprio usuário retorna 403
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+            }
         } else {
             return ResponseEntity.notFound().build();
         }
