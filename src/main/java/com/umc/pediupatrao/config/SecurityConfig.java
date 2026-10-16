@@ -3,6 +3,7 @@ package com.umc.pediupatrao.config;
 import com.umc.pediupatrao.service.UsuarioDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -38,17 +39,51 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // Desativa CSRF para REST APIs
+                .csrf(csrf -> csrf.disable()) 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/css/**", "/dist/**", "/plugins/**", "/js/**", "/images/**").permitAll()
-                        .requestMatchers("/api/usuarios").permitAll()
+
+                        // Público
+                        .requestMatchers("/login", "/error", "/css/**", "/dist/**",
+                                         "/plugins/**", "/js/**", "/images/**").permitAll()
+
+                        // Usuários, somente ADMIN
+                        .requestMatchers("/usuarios/**", "/api/usuarios/**").hasRole("ADMIN")
+
+                        // Auditoria, ADMIN e GERENTE
+                        .requestMatchers("/auditoria/**", "/api/auditoria/**").hasAnyRole("ADMIN", "GERENTE")
+
+                        // Pedidos 
+                        // Cancelar e aplicar desconto, SOMENTE GERENTE
+                        .requestMatchers("/api/pedidos/*/cancelar", "/api/pedidos/*/desconto").hasRole("GERENTE")
+                        // Registrar pedido, ATENDENTE
+                        .requestMatchers(HttpMethod.POST, "/api/pedidos").hasRole("ATENDENTE")
+                        // Mudar status, ATENDENTE e GERENTE
+                        .requestMatchers(HttpMethod.PUT, "/api/pedidos/*/status").hasAnyRole("ATENDENTE", "GERENTE")
+                        // Consultar pedidos, para os três perfis
+                        .requestMatchers(HttpMethod.GET, "/pedidos/**", "/api/pedidos/**")
+                                .hasAnyRole("ADMIN", "GERENTE", "ATENDENTE")
+
+                        // Clientes
+                        .requestMatchers(HttpMethod.GET, "/clientes", "/api/clientes/**")
+                                .hasAnyRole("GERENTE", "ATENDENTE")
+                        .requestMatchers(HttpMethod.DELETE, "/api/clientes/**").hasRole("GERENTE")
+                        .requestMatchers("/clientes/**", "/api/clientes/**").hasRole("ATENDENTE")
+
+                        // Produtos
+                        .requestMatchers(HttpMethod.GET, "/produtos/**", "/api/produtos/**").authenticated()
+                        .requestMatchers("/produtos/**", "/api/produtos/**").hasAnyRole("ADMIN", "GERENTE")
+
+                        // Telas administrativas
+                        .requestMatchers("/admin", "/teste", "/configuracoes").hasRole("ADMIN")
+
+                        // Qualquer outra rota, necessario estar logado
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
@@ -67,8 +102,6 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationSuccessHandler authenticationSuccessHandler() {
-        return (request, response, authentication) -> {
-            response.sendRedirect("/"); // Redireciona para a página inicial após login bem-sucedido
-        };
+        return (request, response, authentication) -> response.sendRedirect("/");
     }
 }
