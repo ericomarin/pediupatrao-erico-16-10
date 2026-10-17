@@ -11,6 +11,9 @@
         <h2 class="fw-bold mb-0">
             <i class="bi bi-bag me-2 text-primary"></i>Pedidos
         </h2>
+        <a href="/pedidos/novo" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Novo Pedido
+        </a>
     </div>
 
     <!-- Mensagens de feedback -->
@@ -31,12 +34,12 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-dark">
                     <tr>
-                        <th class="ps-4">ID</th>
-                        <th>Cliente ID</th>
-                        <th>Tipo de Pizza</th>
-                        <th>Sabor</th>
-                        <th>Quantidade</th>
+                        <th class="ps-4">Cliente</th>
+                        <th>Itens</th>
+                        <th>Valores</th>
                         <th>Status</th>
+                        <th>Entrada / Saída</th>
+                        <th class="pe-4">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -49,18 +52,73 @@
                     </tr>
                     <!-- Linhas -->
                     <tr th:each="pedido : ${pedidos}">
-                        <td class="ps-4 text-muted" th:text="${pedido.id}"></td>
-                        <td th:text="${pedido.clienteId}"></td>
-                        <td th:text="${pedido.tipoPizza}"></td>
-                        <td th:text="${pedido.sabor}"></td>
-                        <td th:text="${pedido.quantidade}"></td>
+                        <td class="ps-4 fw-medium" th:text="${pedido.clienteNome}"></td>
+
+                        <!-- Itens -->
+                        <td class="small">
+                            <div th:each="item : ${pedido.itens}"
+                                 th:text="${item.quantidade + 'x ' + item.nomeProduto}"></div>
+                        </td>
+
+                        <!-- Valores calculados no servidor -->
+                        <td class="small">
+                            <div>Itens: R$ <span th:text="${#numbers.formatDecimal(pedido.valorItens, 1, 'POINT', 2, 'COMMA')}"></span></div>
+                            <div class="text-success" th:if="${pedido.percentualDesconto != null and pedido.percentualDesconto.signum() > 0}">
+                                Desconto <span th:text="${pedido.percentualDesconto}"></span>%:
+                                - R$ <span th:text="${#numbers.formatDecimal(pedido.valorDesconto, 1, 'POINT', 2, 'COMMA')}"></span>
+                            </div>
+                            <div class="fw-bold">Total: R$ <span th:text="${#numbers.formatDecimal(pedido.valorTotal, 1, 'POINT', 2, 'COMMA')}"></span></div>
+                        </td>
+
+                        <!-- Status -->
                         <td>
                             <span class="badge"
-                                  th:classappend="${pedido.status == 'ENTREGUE'} ? 'bg-success' :
-                                                  (${pedido.status == 'CANCELADO'} ? 'bg-danger' :
-                                                  (${pedido.status == 'EM_PREPARO'} ? 'bg-warning text-dark' : 'bg-secondary'))"
-                                  th:text="${pedido.status}">
+                                  th:classappend="${pedido.status.name() == 'CANCELADO'} ? 'bg-danger' :
+                                                  (${pedido.status.name() == 'FINALIZADO'} ? 'bg-success' : 'bg-warning text-dark')"
+                                  th:text="${#strings.replace(pedido.status.name(), '_', ' ')}">
                             </span>
+                            <div class="small text-danger mt-1" th:if="${pedido.status.name() == 'CANCELADO'}">
+                                Por <span th:text="${pedido.canceladoPor}"></span>:
+                                <em th:text="${pedido.justificativaCancelamento}"></em>
+                            </div>
+                        </td>
+
+                        <!-- Entrada e saída -->
+                        <td class="small">
+                            <div>
+                                Entrada: <span th:text="${#temporals.format(pedido.dataHoraEntrada, 'dd/MM HH:mm')}"></span>
+                                (<span th:text="${pedido.registradoPor}"></span>)
+                            </div>
+                            <div th:if="${pedido.dataHoraSaida != null}">
+                                Saída: <span th:text="${#temporals.format(pedido.dataHoraSaida, 'dd/MM HH:mm')}"></span>
+                                (<span th:text="${pedido.responsavelSaida}"></span>)
+                            </div>
+                        </td>
+
+                        <!-- Ações (as permissões são verificadas no backend) -->
+                        <td class="pe-4" style="min-width: 260px;">
+                            <!-- Avançar status -->
+                            <form th:each="proximo : ${pedido.status.proximosPermitidos()}"
+                                  th:action="@{/pedidos/{id}/status(id=${pedido.id})}" method="post" class="d-inline">
+                                <input type="hidden" name="status" th:value="${proximo}">
+                                <button type="submit" class="btn btn-sm btn-outline-primary mb-1"
+                                        th:text="${'→ ' + #strings.replace(proximo.name(), '_', ' ')}"></button>
+                            </form>
+
+                            <th:block th:if="${pedido.status.antesDaSaida()}">
+                                <!-- Desconto (GERENTE) -->
+                                <form th:action="@{/pedidos/{id}/desconto(id=${pedido.id})}" method="post"
+                                      class="input-group input-group-sm mt-1">
+                                    <input type="number" name="percentual" class="form-control" placeholder="% desconto" step="0.5" required>
+                                    <button type="submit" class="btn btn-outline-success">Desconto</button>
+                                </form>
+                                <!-- Cancelamento (GERENTE) -->
+                                <form th:action="@{/pedidos/{id}/cancelar(id=${pedido.id})}" method="post"
+                                      class="input-group input-group-sm mt-1">
+                                    <input type="text" name="justificativa" class="form-control" placeholder="Justificativa" required>
+                                    <button type="submit" class="btn btn-outline-danger">Cancelar</button>
+                                </form>
+                            </th:block>
                         </td>
                     </tr>
                 </tbody>

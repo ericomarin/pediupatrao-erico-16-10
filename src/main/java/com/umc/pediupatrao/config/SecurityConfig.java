@@ -8,6 +8,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity; // AJUSTE
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -17,6 +18,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final UsuarioDetailsService usuarioDetailsService;
@@ -44,9 +46,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {        
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // CSRF habilitado (padrão do Spring Security): formulários e requisições
+                // CSRF habilitado, formulários e requisições
                 // de alteração precisam enviar o token, o que protege contra ataques CSRF
                 .authorizeHttpRequests(auth -> auth
 
@@ -54,19 +56,22 @@ public class SecurityConfig {
                         .requestMatchers("/login", "/error", "/css/**", "/dist/**",
                                          "/plugins/**", "/js/**", "/images/**").permitAll()
 
-                        // Usuários, somente ADMIN
+                        // Usuários, ADMIN
                         .requestMatchers("/usuarios/**", "/api/usuarios/**").hasRole("ADMIN")
 
                         // Auditoria, ADMIN e GERENTE
                         .requestMatchers("/auditoria/**", "/api/auditoria/**").hasAnyRole("ADMIN", "GERENTE")
 
-                        // Pedidos 
-                        // Cancelar e aplicar desconto, SOMENTE GERENTE
-                        .requestMatchers("/api/pedidos/*/cancelar", "/api/pedidos/*/desconto").hasRole("GERENTE")
+                        // Pedidos (incluídas as rotas das telas /pedidos/...)
+                        // Cancelar e aplicar desconto, GERENTE
+                        .requestMatchers("/api/pedidos/*/cancelar", "/api/pedidos/*/desconto",
+                                         "/pedidos/*/cancelar", "/pedidos/*/desconto").hasRole("GERENTE")
                         // Registrar pedido, ATENDENTE
                         .requestMatchers(HttpMethod.POST, "/api/pedidos").hasRole("ATENDENTE")
+                        .requestMatchers("/pedidos/novo", "/pedidos/salvar").hasRole("ATENDENTE")
                         // Mudar status, ATENDENTE e GERENTE
                         .requestMatchers(HttpMethod.PUT, "/api/pedidos/*/status").hasAnyRole("ATENDENTE", "GERENTE")
+                        .requestMatchers(HttpMethod.POST, "/pedidos/*/status").hasAnyRole("ATENDENTE", "GERENTE")
                         // Consultar pedidos, para os três perfis
                         .requestMatchers(HttpMethod.GET, "/pedidos/**", "/api/pedidos/**")
                                 .hasAnyRole("ADMIN", "GERENTE", "ATENDENTE")

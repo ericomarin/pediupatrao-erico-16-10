@@ -1,7 +1,9 @@
 package com.umc.pediupatrao.config;
 
 import com.umc.pediupatrao.entity.Perfil;
+import com.umc.pediupatrao.entity.Produto;                    // AJUSTE
 import com.umc.pediupatrao.entity.Usuario;
+import com.umc.pediupatrao.repository.ProdutoRepository;      // AJUSTE
 import com.umc.pediupatrao.repository.UsuarioRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -12,11 +14,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class DataInitializer {
 
     @Bean
-    CommandLineRunner initDatabase(UsuarioRepository repo, PasswordEncoder encoder) {
+    CommandLineRunner initDatabase(UsuarioRepository repo, ProdutoRepository produtoRepo, PasswordEncoder encoder) {
         return args -> {
             criarSeNaoExistir(repo, encoder, "admin", "teste123", Perfil.ADMIN);
             criarSeNaoExistir(repo, encoder, "gerente", "teste123", Perfil.GERENTE);
             criarSeNaoExistir(repo, encoder, "atendente", "teste123", Perfil.ATENDENTE);
+            criarProdutosIniciais(produtoRepo); // AJUSTE: produtos de exemplo para registrar pedidos
         };
     }
 
@@ -36,7 +39,7 @@ public class DataInitializer {
             },
 
             // Não existe, cria novo usuário com o perfil especificado
-            
+
             () -> {
                 Usuario novo = new Usuario();
                 novo.setUsername(username);
@@ -46,5 +49,28 @@ public class DataInitializer {
                 System.out.println("Usuário " + username + " (" + perfil + ") criado!");
             }
         );
+    }
+
+    // Cadastra produtos de exemplo, caso ainda não exista nenhum
+    private void criarProdutosIniciais(ProdutoRepository produtoRepo) {
+        if (produtoRepo.count() > 0) {
+            return;
+        }
+        produtoRepo.save(novoProduto("Pizza Calabresa", "Pizza", 49.90));
+        produtoRepo.save(novoProduto("Pizza Mussarela", "Pizza", 45.90));
+        produtoRepo.save(novoProduto("Pizza Portuguesa", "Pizza", 54.90));
+        produtoRepo.save(novoProduto("Refrigerante 2L", "Bebida", 12.00));
+        produtoRepo.save(novoProduto("Suco 500ml", "Bebida", 8.50));
+        System.out.println("Produtos iniciais cadastrados!");
+    }
+
+    // Monta um produto ativo com nome, tipo e preço
+    private Produto novoProduto(String nome, String tipo, double preco) {
+        Produto produto = new Produto();
+        produto.setNome(nome);
+        produto.setTipo(tipo);
+        produto.setPreco(preco);
+        produto.setAtivo(true);
+        return produto;
     }
 }
