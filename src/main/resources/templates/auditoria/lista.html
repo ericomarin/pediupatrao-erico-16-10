@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Auditoria</title>
+</head>
+<body>
+
+<div th:fragment="content">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">
+            <i class="bi bi-shield-check me-2 text-primary"></i>Auditoria
+        </h2>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="ps-4">Data e hora</th>
+                        <th>Usuário</th>
+                        <th>Operação</th>
+                        <th>Entidade</th>
+                        <th>Campos alterados</th>
+                        <th class="pe-4">Justificativa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Lista vazia -->
+                    <tr th:if="${#lists.isEmpty(registros)}">
+                        <td colspan="6" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                            Nenhum registro de auditoria.
+                        </td>
+                    </tr>
+                    <!-- Linhas -->
+                    <tr th:each="registro : ${registros}">
+                        <td class="ps-4" th:text="${#temporals.format(registro.dataHora, 'dd/MM/yyyy HH:mm:ss')}"></td>
+                        <td>
+                            <strong th:text="${registro.usuario}"></strong>
+                            <span class="badge bg-secondary" th:text="${registro.perfil}"></span>
+                        </td>
+                        <td class="fw-medium" th:text="${registro.operacao}"></td>
+                        <td>
+                            <span th:text="${registro.entidade}"></span>
+                            <div class="text-muted" th:text="${registro.entidadeId}"></div>
+                        </td>
+                        <td>
+                            <div th:each="alt : ${registro.alteracoes}">
+                                <strong th:text="${alt.campo}"></strong>:
+                                <span class="text-danger" th:text="${alt.valorAnterior ?: '—'}"></span>
+                                →
+                                <span class="text-success" th:text="${alt.valorNovo ?: '—'}"></span>
+                            </div>
+                        </td>
+                        <td class="pe-4" th:text="${registro.justificativa ?: '—'}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer text-muted small" th:if="${!#lists.isEmpty(registros)}">
+            Total: <strong th:text="${#lists.size(registros)}"></strong> registro(s) — registros imutáveis, sem opção de alteração ou exclusão
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

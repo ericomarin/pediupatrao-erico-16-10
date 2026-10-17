@@ -1,6 +1,7 @@
 package com.umc.pediupatrao.service;
 
 import com.umc.pediupatrao.dto.PedidoRequest;
+import com.umc.pediupatrao.entity.AlteracaoCampo;                     
 import com.umc.pediupatrao.entity.Cliente;
 import com.umc.pediupatrao.entity.ItemPedido;
 import com.umc.pediupatrao.entity.Pedido;
@@ -17,7 +18,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;                                             
 import java.util.List;
+import java.util.stream.Collectors;                                     
 
 @Service
 public class PedidoService {
@@ -33,7 +36,10 @@ public class PedidoService {
     @Autowired
     private ProdutoRepository produtoRepository;
 
-    // Registra um novo pedido. Preços e total são calculados aqui, nunca recebidos da requisição
+    @Autowired
+    private AuditoriaService auditoriaService;                          // AJUSTE (RF05)
+
+    // Registra um novo pedido, preços e total são calculados aqui, nunca recebidos da requisição
     @PreAuthorize("hasRole('ATENDENTE')")
     public Pedido criarPedido(PedidoRequest request) {
         if (request.getClienteId() == null || request.getClienteId().isBlank()) {
@@ -83,7 +89,17 @@ public class PedidoService {
         pedido.setRegistradoPor(usuarioLogado());
         pedido.setDataHoraEntrada(LocalDateTime.now());
 
-        return pedidoRepository.save(pedido);
+        Pedido salvo = pedidoRepository.save(pedido);
+
+        // Auditoria da inclusão do pedido
+        List<AlteracaoCampo> alteracoes = new ArrayList<>();
+        AuditoriaService.comparar(alteracoes, "cliente", null, salvo.getClienteNome());
+        AuditoriaService.comparar(alteracoes, "itens", null, resumoItens(salvo));
+        AuditoriaService.comparar(alteracoes, "valorTotal", null, salvo.getValorTotal());
+        AuditoriaService.comparar(alteracoes, "status", null, salvo.getStatus());
+        auditoriaService.registrar("INCLUSÃO DE PEDIDO", "PEDIDO", salvo.getId(), alteracoes, null);
+
+        return salvo;
     }
 
     public List<Pedido> listarPedidos() {
@@ -94,6 +110,7 @@ public class PedidoService {
     @PreAuthorize("hasAnyRole('ATENDENTE', 'GERENTE')")
     public Pedido atualizarStatus(String id, StatusPedido novoStatus) {
         Pedido pedido = buscarPedido(id);
+        StatusPedido statusAnterior = pedido.getStatus();               // AJUSTE (RF05)
 
         if (pedido.getStatus() == StatusPedido.CANCELADO) {
             throw new IllegalStateException("Pedido cancelado não pode ter o status alterado.");
@@ -116,13 +133,25 @@ public class PedidoService {
             pedido.setDataHoraFinalizacao(LocalDateTime.now());
         }
 
-        return pedidoRepository.save(pedido);
+        Pedido salvo = pedidoRepository.save(pedido);
+
+        // Auditoria da mudança de status (e da saída, quando houver)
+        List<AlteracaoCampo> alteracoes = new ArrayList<>();
+        AuditoriaService.comparar(alteracoes, "status", statusAnterior, novoStatus);
+        if (novoStatus.representaSaida()) {
+            AuditoriaService.comparar(alteracoes, "responsavelSaida", null, salvo.getResponsavelSaida());
+            AuditoriaService.comparar(alteracoes, "dataHoraSaida", null, salvo.getDataHoraSaida());
+        }
+        auditoriaService.registrar("ALTERAÇÃO DE STATUS", "PEDIDO", salvo.getId(), alteracoes, null);
+
+        return salvo;
     }
 
     // Cancelamento exclusivo do GERENTE, com justificativa, antes da saída
     @PreAuthorize("hasRole('GERENTE')")
     public Pedido cancelarPedido(String id, String justificativa) {
         Pedido pedido = buscarPedido(id);
+        StatusPedido statusAnterior = pedido.getStatus();               // AJUSTE (RF05)
 
         if (justificativa == null || justificativa.isBlank()) {
             throw new IllegalArgumentException("A justificativa do cancelamento é obrigatória.");
@@ -140,7 +169,15 @@ public class PedidoService {
         pedido.setDataHoraCancelamento(LocalDateTime.now());
         pedido.setJustificativaCancelamento(justificativa.trim());
 
-        return pedidoRepository.save(pedido);
+        Pedido salvo = pedidoRepository.save(pedido);
+
+        // Auditoria do cancelamento, com a justificativa
+        List<AlteracaoCampo> alteracoes = new ArrayList<>();
+        AuditoriaService.comparar(alteracoes, "status", statusAnterior, StatusPedido.CANCELADO);
+        auditoriaService.registrar("CANCELAMENTO DE PEDIDO", "PEDIDO", salvo.getId(),
+                alteracoes, salvo.getJustificativaCancelamento());
+
+        return salvo;
     }
 
     // Desconto percentual exclusivo do GERENTE, limitado a 20%, antes da saída
@@ -157,11 +194,23 @@ public class PedidoService {
             throw new IllegalStateException("O desconto só pode ser aplicado em pedidos ativos, antes da saída.");
         }
 
+        // Guarda os valores anteriores para a auditoria
+        BigDecimal percentualAnterior = pedido.getPercentualDesconto();
+        BigDecimal totalAnterior = pedido.getValorTotal();
+
         pedido.setPercentualDesconto(percentual);
         pedido.setDescontoAplicadoPor(usuarioLogado());
         recalcularValores(pedido);
 
-        return pedidoRepository.save(pedido);
+        Pedido salvo = pedidoRepository.save(pedido);
+
+        // Auditoria do desconto (percentual e total, antes e depois)
+        List<AlteracaoCampo> alteracoes = new ArrayList<>();
+        AuditoriaService.comparar(alteracoes, "percentualDesconto", percentualAnterior, percentual);
+        AuditoriaService.comparar(alteracoes, "valorTotal", totalAnterior, salvo.getValorTotal());
+        auditoriaService.registrar("APLICAÇÃO DE DESCONTO", "PEDIDO", salvo.getId(), alteracoes, null);
+
+        return salvo;
     }
 
     // Calcula valor dos itens, desconto e total (sempre no servidor)
@@ -178,6 +227,13 @@ public class PedidoService {
         pedido.setValorItens(valorItens);
         pedido.setValorDesconto(valorDesconto);
         pedido.setValorTotal(valorItens.subtract(valorDesconto));
+    }
+
+    // Resumo legível dos itens para a auditoria (ex: "2x Pizza Calabresa, 1x Refrigerante 2L")
+    private String resumoItens(Pedido pedido) {
+        return pedido.getItens().stream()
+                .map(i -> i.getQuantidade() + "x " + i.getNomeProduto())
+                .collect(Collectors.joining(", "));
     }
 
     private Pedido buscarPedido(String id) {
