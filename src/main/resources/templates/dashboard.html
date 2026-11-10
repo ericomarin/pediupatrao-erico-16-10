@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Dashboard</title>
+</head>
+<body>
+
+<div th:fragment="content">
+
+    <!-- Cabeçalho -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h2>
+            <div class="small text-muted">Período: <span id="periodo-exibido">—</span></div>
+        </div>
+        <div class="small text-muted">
+            <span id="indicador-carregando" class="spinner-border spinner-border-sm me-1 d-none" role="status"></span>
+            Última atualização: <strong id="ultima-atualizacao">—</strong>
+        </div>
+    </div>
+
+    <!-- Filtros-->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body py-2">
+            <form id="form-filtros" class="row g-2 align-items-end">
+                <div class="col-6 col-md-2">
+                    <label for="filtro-inicio" class="form-label small mb-1">Início</label>
+                    <input type="date" id="filtro-inicio" class="form-control form-control-sm">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="filtro-fim" class="form-label small mb-1">Fim</label>
+                    <input type="date" id="filtro-fim" class="form-control form-control-sm">
+                </div>
+                <div class="col-12 col-md-2">
+                    <label for="filtro-status" class="form-label small mb-1">Status</label>
+                    <select id="filtro-status" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <option value="RECEBIDO">Recebido</option>
+                        <option value="EM_PREPARACAO">Em preparação</option>
+                        <option value="PRONTO">Pronto</option>
+                        <option value="SAIU_PARA_ENTREGA">Saiu para entrega</option>
+                        <option value="RETIRADO">Retirado</option>
+                        <option value="FINALIZADO">Finalizado</option>
+                        <option value="CANCELADO">Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4 d-flex flex-wrap gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-dias="1">Hoje</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-dias="7">7 dias</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-dias="30">30 dias</button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="bi bi-funnel me-1"></i>Aplicar
+                    </button>
+                </div>
+                <div class="col-12 col-md-2">
+                    <div class="form-check form-switch mb-1">
+                        <input class="form-check-input" type="checkbox" id="auto-atualizar" checked>
+                        <label class="form-check-label small" for="auto-atualizar">Atualizar a cada 30 s</label>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mensagem de erro-->
+    <div id="alerta-erro" class="alert alert-danger d-none" role="alert"></div>
+
+    <!-- Indicadores gerais-->
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-lg">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="small text-muted"><i class="bi bi-cash-coin me-1"></i>Faturamento</div>
+                <div class="fs-4 fw-bold" id="kpi-faturamento">—</div>
+                <div class="small text-muted">pedidos não cancelados</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-lg">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="small text-muted"><i class="bi bi-bag-check me-1"></i>Pedidos</div>
+                <div class="fs-4 fw-bold" id="kpi-pedidos">—</div>
+                <div class="small text-muted" id="kpi-pedidos-detalhe">&nbsp;</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-lg">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="small text-muted"><i class="bi bi-receipt me-1"></i>Ticket médio</div>
+                <div class="fs-4 fw-bold" id="kpi-ticket">—</div>
+                <div class="small text-muted">por pedido</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-lg">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="small text-muted"><i class="bi bi-percent me-1"></i>Descontos</div>
+                <div class="fs-4 fw-bold" id="kpi-descontos">—</div>
+                <div class="small text-muted">concedidos</div>
+            </div></div>
+        </div>
+        <div class="col-12 col-lg">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="small text-muted"><i class="bi bi-x-circle me-1"></i>Cancelados</div>
+                <div class="fs-4 fw-bold text-danger" id="kpi-cancelados">—</div>
+                <div class="small text-muted" id="kpi-cancelados-detalhe">&nbsp;</div>
+            </div></div>
+        </div>
+    </div>
+
+    <!-- Gráficos-->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-medium">Vendas por dia</div>
+                <div class="card-body"><div style="height: 280px;"><canvas id="grafico-dias"></canvas></div></div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-medium">Situação dos pedidos</div>
+                <div class="card-body"><div style="height: 280px;"><canvas id="grafico-status"></canvas></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-medium">Pedidos por horário</div>
+                <div class="card-body"><div style="height: 260px;"><canvas id="grafico-horas"></canvas></div></div>
+            </div>
+        </div>
+        <!-- Produtos mais vendidos-->
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-medium">Produtos mais vendidos</div>
+                <div class="card-body p-0">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th class="ps-3">#</th><th>Produto</th><th class="text-end">Qtd.</th><th class="text-end pe-3">Faturamento</th></tr>
+                        </thead>
+                        <tbody id="tabela-produtos"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pedidos recentes-->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white fw-medium">Pedidos recentes</div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr><th class="ps-3">Entrada</th><th>Cliente</th><th>Itens</th><th>Status</th><th class="text-end pe-3">Valor</th></tr>
+                </thead>
+                <tbody id="tabela-recentes"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            // ---------- Configuração ----------
+
+            const API = '/api/dashboard';
+            const INTERVALO_ATUALIZACAO_MS = 30000;
+
+            const STATUS = {
+                RECEBIDO:          { rotulo: 'Recebido',          cor: '#6c757d' },
+                EM_PREPARACAO:     { rotulo: 'Em preparação',     cor: '#ffc107' },
+                PRONTO:            { rotulo: 'Pronto',            cor: '#0dcaf0' },
+                SAIU_PARA_ENTREGA: { rotulo: 'Saiu para entrega', cor: '#0d6efd' },
+                RETIRADO:          { rotulo: 'Retirado',          cor: '#6610f2' },
+                FINALIZADO:        { rotulo: 'Finalizado',        cor: '#198754' },
+                CANCELADO:         { rotulo: 'Cancelado',         cor: '#dc3545' }
+            };
+
+            const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+            const graficos = {};
+            let temporizador = null;
+
+            const el = (id) => document.getElementById(id);
+
+            // ---------- Utilitários ----------
+
+            function dataISO(data) {
+                const mes = String(data.getMonth() + 1).padStart(2, '0');
+                const dia = String(data.getDate()).padStart(2, '0');
+                return `${data.getFullYear()}-${mes}-${dia}`;
+            }
+
+            function formatarData(iso) {           // "2026-11-10" -> "10/11/2026"
+                const [ano, mes, dia] = iso.split('-');
+                return `${dia}/${mes}/${ano}`;
+            }
+
+            function escapar(texto) {               
+                return String(texto ?? '').replace(/[&<>"']/g, (c) =>
+                    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            }
+
+            function definirPeriodo(dias) {
+                const fim = new Date();
+                const inicio = new Date();
+                inicio.setDate(fim.getDate() - (dias - 1));
+                el('filtro-inicio').value = dataISO(inicio);
+                el('filtro-fim').value = dataISO(fim);
+            }
+
+            // ---------- Integração com a API----------
+            function parametros(extras) {
+                const p = new URLSearchParams();
+                if (el('filtro-inicio').value) p.set('inicio', el('filtro-inicio').value);
+                if (el('filtro-fim').value) p.set('fim', el('filtro-fim').value);
+                if (el('filtro-status').value) p.set('status', el('filtro-status').value);
+                Object.entries(extras || {}).forEach(([chave, valor]) => p.set(chave, valor));
+                return p.toString();
+            }
+
+            async function buscar(endpoint, extras) {
+                const resposta = await fetch(`${API}/${endpoint}?${parametros(extras)}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (resposta.redirected && resposta.url.includes('/login')) {
+                    throw new Error('Sua sessão expirou. Faça login novamente.');
+                }
+                if (resposta.status === 403) {
+                    throw new Error('Você não tem permissão para acessar o dashboard.');
+                }
+                if (!resposta.ok) {
+                    let mensagem = `Erro ${resposta.status} ao consultar a API.`;
+                    try {
+                        const corpo = await resposta.json();
+                        if (corpo.mensagem) mensagem = corpo.mensagem;
+                    } catch (e) { /* corpo não é JSON */ }
+                    throw new Error(mensagem);
+                }
+                return resposta.json();
+            }
+
+            // ---------- Carregamento e atualização----------
+
+            async function carregar() {
+                el('indicador-carregando').classList.remove('d-none');
+                try {
+                    const [resumo, dias, horas, status, produtos, recentes] = await Promise.all([
+                        buscar('resumo'),
+                        buscar('vendas-por-dia'),
+                        buscar('vendas-por-hora'),
+                        buscar('pedidos-por-status'),
+                        buscar('produtos-mais-vendidos', { limite: 5 }),
+                        buscar('pedidos-recentes', { limite: 10 })
+                    ]);
+                    esconderErro();
+                    renderizarResumo(resumo);
+                    renderizarVendasPorDia(dias);
+                    renderizarStatus(status);
+                    renderizarHoras(horas);
+                    renderizarProdutos(produtos);
+                    renderizarRecentes(recentes);
+                    el('ultima-atualizacao').textContent = new Date().toLocaleTimeString('pt-BR');
+                } catch (erro) {
+                    // Em caso de erro, mantém os últimos dados na tela e exibe a mensagem
+                    mostrarErro(erro.message);
+                } finally {
+                    el('indicador-carregando').classList.add('d-none');
+                }
+            }
+
+            function configurarAtualizacaoAutomatica() {
+                clearInterval(temporizador);
+                if (el('auto-atualizar').checked) {
+                    temporizador = setInterval(() => {
+                        if (!document.hidden) carregar();   
+                    }, INTERVALO_ATUALIZACAO_MS);
+                }
+            }
+
+            function mostrarErro(mensagem) {
+                el('alerta-erro').innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>${escapar(mensagem)}`;
+                el('alerta-erro').classList.remove('d-none');
+            }
+
+            function esconderErro() {
+                el('alerta-erro').classList.add('d-none');
+            }
+
+            // ---------- Renderização ----------
+            function renderizarResumo(r) {
+                el('periodo-exibido').textContent = `${formatarData(r.inicio)} a ${formatarData(r.fim)}`;
+                el('kpi-faturamento').textContent = moeda.format(r.faturamento);
+                el('kpi-pedidos').textContent = r.pedidosValidos;
+                el('kpi-pedidos-detalhe').textContent = `${r.totalPedidos} no total`;
+                el('kpi-ticket').textContent = moeda.format(r.ticketMedio);
+                el('kpi-descontos').textContent = moeda.format(r.totalDescontos);
+                el('kpi-cancelados').textContent = r.pedidosCancelados;
+                el('kpi-cancelados-detalhe').textContent =
+                    `${String(r.taxaCancelamento).replace('.', ',')}% dos pedidos`;
+            }
+
+            function desenharGrafico(id, configuracao) {
+                if (graficos[id]) {                         
+                    graficos[id].data = configuracao.data;
+                    graficos[id].update();
+                } else {
+                    graficos[id] = new Chart(el(id), configuracao);
+                }
+            }
+
+            function renderizarVendasPorDia(dias) {
+                desenharGrafico('grafico-dias', {
+                    type: 'bar',
+                    data: {
+                        labels: dias.map(d => formatarData(d.data).slice(0, 5)),
+                        datasets: [
+                            {
+                                type: 'line', label: 'Faturamento', yAxisID: 'y',
+                                data: dias.map(d => d.faturamento),
+                                borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.12)',
+                                fill: true, tension: 0.3, pointRadius: 2
+                            },
+                            {
+                                type: 'bar', label: 'Pedidos', yAxisID: 'y1',
+                                data: dias.map(d => d.quantidade),
+                                backgroundColor: 'rgba(108,117,125,0.35)'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => ctx.dataset.yAxisID === 'y'
+                                        ? `Faturamento: ${moeda.format(ctx.parsed.y)}`
+                                        : `Pedidos: ${ctx.parsed.y}`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { callback: (v) => moeda.format(v) } },
+                            y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { precision: 0 } }
+                        }
+                    }
+                });
+            }
+
+            function renderizarStatus(lista) {
+                desenharGrafico('grafico-status', {
+                    type: 'doughnut',
+                    data: {
+                        labels: lista.map(s => STATUS[s.status]?.rotulo ?? s.status),
+                        datasets: [{
+                            data: lista.map(s => s.quantidade),
+                            backgroundColor: lista.map(s => STATUS[s.status]?.cor ?? '#adb5bd')
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+                    }
+                });
+            }
+
+            function renderizarHoras(horas) {
+                desenharGrafico('grafico-horas', {
+                    type: 'bar',
+                    data: {
+                        labels: horas.map(h => `${h.hora}h`),
+                        datasets: [{ label: 'Pedidos', data: horas.map(h => h.quantidade), backgroundColor: '#fd7e14' }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                    }
+                });
+            }
+
+            function renderizarProdutos(produtos) {
+                el('tabela-produtos').innerHTML = produtos.length === 0
+                    ? '<tr><td colspan="4" class="text-center text-muted py-4">Nenhuma venda no período.</td></tr>'
+                    : produtos.map((p, i) => `
+                        <tr>
+                            <td class="ps-3 fw-bold">${i + 1}º</td>
+                            <td>${escapar(p.produto)}</td>
+                            <td class="text-end">${p.quantidade}</td>
+                            <td class="text-end pe-3">${moeda.format(p.faturamento)}</td>
+                        </tr>`).join('');
+            }
+
+            function renderizarRecentes(pedidos) {
+                el('tabela-recentes').innerHTML = pedidos.length === 0
+                    ? '<tr><td colspan="5" class="text-center text-muted py-4">Nenhum pedido no período.</td></tr>'
+                    : pedidos.map(p => {
+                        const status = STATUS[p.status] ?? { rotulo: p.status, cor: '#adb5bd' };
+                        const entrada = new Date(p.dataHoraEntrada).toLocaleString('pt-BR',
+                            { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                        return `
+                        <tr>
+                            <td class="ps-3">${entrada}</td>
+                            <td>${escapar(p.cliente)}</td>
+                            <td>${p.quantidadeItens}</td>
+                            <td><span class="badge" style="background-color:${status.cor}">${escapar(status.rotulo)}</span></td>
+                            <td class="text-end pe-3">${moeda.format(p.valorTotal)}</td>
+                        </tr>`;
+                    }).join('');
+            }
+
+            // ---------- Eventos ----------
+            el('form-filtros').addEventListener('submit', (evento) => {
+                evento.preventDefault();
+                carregar();
+            });
+            document.querySelectorAll('[data-dias]').forEach(botao =>
+                botao.addEventListener('click', () => {
+                    definirPeriodo(Number(botao.dataset.dias));
+                    carregar();
+                }));
+            el('auto-atualizar').addEventListener('change', configurarAtualizacaoAutomatica);
+
+            // ---------- Início ----------
+            definirPeriodo(30);
+            carregar();
+            configurarAtualizacaoAutomatica();
+        })();
+    </script>
+
+</div>
+
+</body>
+</html>
