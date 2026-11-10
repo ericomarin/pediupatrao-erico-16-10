@@ -6,6 +6,7 @@ Evolução do sistema **PediuPatrão** (pizzaria) com controle de perfis, regras
 **Disciplina:** Análise e Projeto de Software
 **Tecnologias:** Java 21+, Spring Boot 3.4, Spring Security, Spring Data MongoDB, Thymeleaf, Chart.js, JUnit 5, Mockito
 **Versão:** 2.0.0
+**Vídeo de apresentação (2 min 23 s):** [`docs/video/apresentacao.mp4`](docs/video/apresentacao.mp4)
 
 > **Atividade 2 — Dashboard Administrativo:** documentação completa (requisitos, API, testes e evidências) em [`docs/DASHBOARD.md`](docs/DASHBOARD.md). Acesse a tela em `/dashboard` (perfis ADMIN e GERENTE).
 
@@ -91,8 +92,11 @@ Filtros comuns: `inicio` e `fim` (`yyyy-MM-dd`) e `status`. Parâmetros, exemplo
 - **13 testes de integração** (`DashboardApiIntegrationTest`): respostas da API, erros 400, permissões (403) e redirecionamento sem login.
 - Evidências (prints e saída dos testes) em [`docs/evidencias`](docs/evidencias).
 
+### Apresentação em vídeo
+O vídeo [`docs/video/apresentacao.mp4`](docs/video/apresentacao.mp4) demonstra o funcionamento do dashboard (indicadores, gráficos, filtros, tratamento de erro, API em JSON e bloqueio do ATENDENTE) e justifica as principais decisões de análise e projeto. Para assistir, abra o arquivo no GitHub ou faça o download.
+
 ### Versionamento (Gitflow)
-`main` (estável) ← `release/2.0.0` ← `develop` ← `feature/dashboard-api`, `feature/dashboard-ui`, `feature/dashboard-testes`, `feature/dashboard-docs`, `feature/correcoes-feedback`.
+`main` (estável) ← `release/2.0.0` ← `develop` ← `feature/dashboard-api`, `feature/dashboard-ui`, `feature/dashboard-testes`, `feature/dashboard-docs`, `feature/correcoes-feedback`, `feature/apresentacao-video`.
 
 ---
 
@@ -182,6 +186,7 @@ Filtros comuns: `inicio` e `fim` (`yyyy-MM-dd`) e `status`. Parâmetros, exemplo
 | `config/SecurityConfig.java` | Acesso ao dashboard restrito a ADMIN e GERENTE |
 | `src/test/...` | Novos — testes unitários e de integração |
 | `docs/DASHBOARD.md` | Novo — requisitos, documentação da API e evidências |
+| `docs/video/apresentacao.mp4` | Novo — vídeo de apresentação da solução |
 
 ### Atividade 1 — Perfis, pedidos e auditoria
 
