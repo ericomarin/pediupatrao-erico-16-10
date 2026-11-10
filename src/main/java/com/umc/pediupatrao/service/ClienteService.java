@@ -1,11 +1,12 @@
 package com.umc.pediupatrao.service;
 
-import com.umc.pediupatrao.entity.AlteracaoCampo;                      
+import com.umc.pediupatrao.entity.AlteracaoCampo;
 import com.umc.pediupatrao.entity.Cliente;
 import com.umc.pediupatrao.repository.ClienteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.ArrayList;                                            
+import org.springframework.transaction.annotation.Transactional;  
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,8 +17,9 @@ public class ClienteService {
     private ClienteRepository clienteRepository;
 
     @Autowired
-    private AuditoriaService auditoriaService;                          
+    private AuditoriaService auditoriaService;
 
+    @Transactional //Inclusão e auditoria na mesma transação
     public Cliente novoCliente(Cliente cliente) {
         return salvar(cliente); // Passa pelo salvar para também ser auditado
     }
@@ -27,6 +29,7 @@ public class ClienteService {
     }
 
     // Método para excluir cliente
+    @Transactional // Exclusão e auditoria na mesma transação
     public void excluir(String id) {
         // Registra a exclusão (apenas o nome, para não expor dados pessoais além do necessário)
         clienteRepository.findById(id).ifPresent(cliente -> {
@@ -42,6 +45,7 @@ public class ClienteService {
     }
 
     // Método para salvar um novo cliente ou atualizar um cliente existente
+    @Transactional // Gravação do cliente e auditoria na mesma transação
     public Cliente salvar(Cliente cliente) {
         // Se o cliente não tem ID (novo cliente), salva como novo
         if (cliente.getId() == null) {
