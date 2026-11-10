@@ -4,7 +4,8 @@ Documentação da atividade de **Dashboard Administrativo** integrado ao sistema
 
 **Aluno:** Erico Marin
 **Disciplina:** Análise e Projeto de Software
-**Tecnologias:** Java 21+, Spring Boot 3.4, Spring Security, Spring Data MongoDB, Thymeleaf, Chart.js, JUnit 5
+**Tecnologias:** Java 21+, Spring Boot 3.4, Spring Security, Spring Data MongoDB, Thymeleaf, Chart.js, JUnit 5, Mockito
+**Versão:** 2.0.0
 
 ---
 
@@ -18,6 +19,7 @@ Documentação da atividade de **Dashboard Administrativo** integrado ao sistema
 6. [Testes e evidências](#6-testes-e-evidências)
 7. [Versionamento (Gitflow)](#7-versionamento-gitflow)
 8. [Como executar](#8-como-executar)
+9. [Correções da entrega 1](#9-correções-do-feedback-da-entrega-1)
 
 ---
 
@@ -81,8 +83,10 @@ DashboardExceptionHandler (erros 400 padronizados)
 | **RNF05** | Usabilidade | Layout responsivo (Bootstrap 5), valores no formato brasileiro (R$ 1.234,56), datas dd/mm/aaaa, rótulos de status em português e cores consistentes por status. |
 | **RNF06** | Manutenibilidade | Arquitetura em camadas (controller → service → repository), DTOs imutáveis (`record`), tratamento de erros centralizado (`@RestControllerAdvice`) e código comentado. |
 | **RNF07** | Interoperabilidade | Respostas em JSON, datas no padrão ISO-8601 (`yyyy-MM-dd`) e corpo de erro padronizado. |
-| **RNF08** | Testabilidade | 26 testes automatizados (unitários e de integração) executados com `./mvnw test`. |
+| **RNF08** | Testabilidade | 78 testes automatizados (unitários e de integração), cobrindo o dashboard e as regras da entrega 1, executados com `./mvnw test`. |
 | **RNF09** | Portabilidade | Executa com Java 21 ou superior e MongoDB local; URI do banco configurável pela variável `MONGODB_URI`. |
+| **RNF10** | Segurança | Nenhuma senha no código ou no repositório: as senhas iniciais vêm das variáveis de ambiente `SENHA_ADMIN`, `SENHA_GERENTE` e `SENHA_ATENDENTE` (mínimo de 8 caracteres) e são gravadas com BCrypt. Sem a variável, o usuário não é criado. |
+| **RNF11** | Consistência | Toda operação que grava um pedido ou cliente e o seu registro de auditoria roda em uma transação MongoDB (`@Transactional`): ou os dois são gravados, ou nenhum. Requer o MongoDB em modo *replica set*. |
 
 ---
 
@@ -331,7 +335,7 @@ GET /api/dashboard/produtos-mais-vendidos?limite=3
 
 ### 6.1 Como executar
 
-Pré-requisito: MongoDB em execução em `localhost:27017`.
+Pré-requisito: MongoDB em execução em `localhost:27017`, em modo *replica set* `rs0` (ver seção 8).
 
 ```bash
 ./mvnw test
@@ -342,9 +346,13 @@ Os testes de integração usam um banco separado (`pizzaria_teste`), sem alterar
 ### 6.2 Resultado
 
 ```
+Tests run: 21, Failures: 0, Errors: 0, Skipped: 0 -- in StatusPedidoTest
 Tests run: 13, Failures: 0, Errors: 0, Skipped: 0 -- in DashboardApiIntegrationTest
+Tests run: 19, Failures: 0, Errors: 0, Skipped: 0 -- in PedidoServiceTest
 Tests run: 13, Failures: 0, Errors: 0, Skipped: 0 -- in DashboardServiceTest
-Tests run: 26, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 10, Failures: 0, Errors: 0, Skipped: 0 -- in UsuarioServiceTest
+Tests run:  2, Failures: 0, Errors: 0, Skipped: 0 -- in PedidoTransacaoIntegrationTest
+Tests run: 78, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
@@ -390,7 +398,16 @@ Sobem a aplicação completa (Spring, Security e MongoDB) e chamam a API via `Mo
 | 12 | `GET /resumo` | sem login | redirecionamento para o login |
 | 13 | `GET /dashboard` (tela) | GERENTE | 200 |
 
-### 6.5 Testes manuais na interface (evidências)
+### 6.5 Testes das regras da entrega 1 (correção do feedback)
+
+| Classe | Tipo | Qtd. | O que garante |
+|---|---|---|---|
+| `StatusPedidoTest` | Unitário | 21 | Fluxo de status (entrega e retirada), sem pular nem voltar etapas, estados finais sem transição, cancelamento só pela operação do gerente, regras de "antes da saída". |
+| `PedidoServiceTest` | Unitário (Mockito) | 19 | Total calculado no servidor; pedido sem itens, sem cliente, com quantidade negativa ou produto inativo recusado; desconto de 10% e 20% aceito, acima de 20%, zero ou após a saída recusado; cancelamento com justificativa preserva o histórico; sem justificativa, após a saída ou duplicado recusado; transições inválidas bloqueadas; auditoria registrada em cada operação. |
+| `UsuarioServiceTest` | Unitário (Mockito) | 10 | Perfil e senha obrigatórios, username único, senha gravada criptografada, ID enviado descartado no cadastro, usuário não exclui a própria conta, bloqueio de autoelevação de perfil, senha mantida quando não informada. |
+| `PedidoTransacaoIntegrationTest` | Integração (MongoDB) | 2 | Se a auditoria falhar, o pedido **não** fica gravado (rollback); com a auditoria funcionando, o pedido é gravado (commit). |
+
+### 6.6 Testes manuais na interface (evidências)
 
 | # | Cenário | Resultado | Evidência |
 |---|---|---|---|
@@ -400,7 +417,8 @@ Sobem a aplicação completa (Spring, Security e MongoDB) e chamam a API via `Mo
 | 4 | Data inicial posterior à final | Mensagem de erro da API exibida; últimos dados mantidos | `evidencias/04-erro-datas-invertidas.png` |
 | 5 | Atualização automática | Horário da última atualização alterado sem ação do usuário | `evidencias/05-atualizacao-automatica.png` |
 | 6 | ATENDENTE acessa `/dashboard` | 403 — Acesso negado | `evidencias/06-atendente-403.png` |
-| 7 | Execução dos testes automatizados | 26 testes, 0 falhas, BUILD SUCCESS | `evidencias/07-testes-automatizados.png` |
+| 7 | Execução dos testes automatizados | 78 testes, 0 falhas, BUILD SUCCESS | `evidencias/07-testes-automatizados.png` |
+| 8 | Pedido criado pelo ATENDENTE com transação ativa | Pedido e "INCLUSÃO DE PEDIDO" gravados juntos na auditoria | `evidencias/08-auditoria-transacao.png` |
 
 ---
 
@@ -414,6 +432,7 @@ Sobem a aplicação completa (Spring, Security e MongoDB) e chamam a API via `Mo
 | `feature/dashboard-ui` | Tela do dashboard |
 | `feature/dashboard-testes` | Testes automatizados |
 | `feature/dashboard-docs` | Esta documentação |
+| `feature/correcoes-feedback` | Correções do feedback da entrega 1 (senhas, transações e testes) |
 | `release/2.0.0` | Preparação da versão para a `main` |
 
 Fluxo: cada `feature/*` nasce da `develop` e volta para ela com `merge --no-ff`. A `release/2.0.0` nasce da `develop`, é integrada à `main` e recebe a tag `v2.0.0`.
@@ -423,16 +442,33 @@ Fluxo: cada `feature/*` nasce da `develop` e volta para ela com `merge --no-ff`.
 ## 8. Como executar
 
 ```bash
-# 1. MongoDB (terminal separado)
-mongod --dbpath ~/mongodb-data
+# 1. MongoDB em modo replica set (terminal separado; necessário para as transações)
+mongod --dbpath ~/mongodb-data --replSet rs0
 
-# 2. Aplicação
+# 1.1 Somente na primeira vez: iniciar o replica set
+mongosh --eval 'rs.initiate()'
+
+# 2. Senhas iniciais (defina as suas; mínimo de 8 caracteres)
+export SENHA_ADMIN='<sua-senha>' SENHA_GERENTE='<sua-senha>' SENHA_ATENDENTE='<sua-senha>'
+
+# 3. Aplicação
 ./mvnw spring-boot:run
 ```
 
-Acesse **http://localhost:8080/dashboard** com o usuário `gerente` ou `admin` (senha `teste123`).
+Na primeira execução são criados os usuários `admin`, `gerente` e `atendente` com as senhas definidas nas variáveis. Acesse **http://localhost:8080/dashboard** com `gerente` ou `admin`.
 
 Com `app.dados-demo=true` (padrão), cerca de 170 pedidos de demonstração são gerados nos últimos 30 dias na primeira execução.
+
+---
+
+## 9. Correções do feedback da entrega 1
+
+| Ponto do feedback | Correção | Onde |
+|---|---|---|
+| Senhas iniciais fixas no código | Senhas lidas de variáveis de ambiente (`SENHA_ADMIN`, `SENHA_GERENTE`, `SENHA_ATENDENTE`), com tamanho mínimo de 8 caracteres e criptografia BCrypt. Sem a variável, o usuário não é criado e um aviso é registrado no log (a senha nunca é registrada). | `config/DataInitializer.java`, `application.properties` |
+| Senha padrão no `application.properties` | Removidas as linhas `spring.security.user.name` e `spring.security.user.password`. O arquivo só referencia as variáveis, sem valores. | `application.properties` |
+| Ausência de transações entre pedidos e auditoria | `MongoTransactionManager` configurado e `@Transactional` nas operações que gravam dados e auditoria: criar pedido, alterar status, cancelar, aplicar desconto, incluir, alterar e excluir cliente. MongoDB executado em *replica set*, requisito para transações. | `config/MongoTransacaoConfig.java`, `service/PedidoService.java`, `service/ClienteService.java` |
+| Ausência de testes automatizados | 52 novos testes cobrindo as regras da entrega 1 (status, pedidos, desconto, cancelamento, usuários) e a consistência transacional, somando 78 testes no projeto. | `src/test/java/...` (seção 6.5) |
 
 ---
 
@@ -451,3 +487,9 @@ Com `app.dados-demo=true` (padrão), cerca de 170 pedidos de demonstração são
 | `templates/dashboard.html` | Interface (cards, gráficos, filtros e atualização) |
 | `test/.../DashboardServiceTest.java` | Testes unitários |
 | `test/.../DashboardApiIntegrationTest.java` | Testes de integração |
+| `config/MongoTransacaoConfig.java` | Gerenciador de transações do MongoDB |
+| `config/DataInitializer.java` | Usuários iniciais com senhas das variáveis de ambiente |
+| `test/.../StatusPedidoTest.java` | Testes do fluxo de status |
+| `test/.../PedidoServiceTest.java` | Testes das regras de pedidos, desconto e cancelamento |
+| `test/.../UsuarioServiceTest.java` | Testes das regras de usuários |
+| `test/.../PedidoTransacaoIntegrationTest.java` | Teste de rollback/commit da transação |

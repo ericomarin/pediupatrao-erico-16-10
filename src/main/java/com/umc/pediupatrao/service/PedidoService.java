@@ -1,7 +1,7 @@
 package com.umc.pediupatrao.service;
 
 import com.umc.pediupatrao.dto.PedidoRequest;
-import com.umc.pediupatrao.entity.AlteracaoCampo;                     
+import com.umc.pediupatrao.entity.AlteracaoCampo;
 import com.umc.pediupatrao.entity.Cliente;
 import com.umc.pediupatrao.entity.ItemPedido;
 import com.umc.pediupatrao.entity.Pedido;
@@ -14,13 +14,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;   
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.ArrayList;                                             
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;                                     
+import java.util.stream.Collectors;
 
 @Service
 public class PedidoService {
@@ -40,6 +41,7 @@ public class PedidoService {
     private AuditoriaService auditoriaService;                          // AJUSTE (RF05)
 
     // Registra um novo pedido, preços e total são calculados aqui, nunca recebidos da requisição
+    @Transactional //Pedido e auditoria gravados juntos (ou nenhum dos dois)
     @PreAuthorize("hasRole('ATENDENTE')")
     public Pedido criarPedido(PedidoRequest request) {
         if (request.getClienteId() == null || request.getClienteId().isBlank()) {
@@ -107,6 +109,7 @@ public class PedidoService {
     }
 
     // Avança o pedido no fluxo, bloqueando transições inválidas
+    @Transactional // Mudança de status e auditoria na mesma transação
     @PreAuthorize("hasAnyRole('ATENDENTE', 'GERENTE')")
     public Pedido atualizarStatus(String id, StatusPedido novoStatus) {
         Pedido pedido = buscarPedido(id);
@@ -148,6 +151,7 @@ public class PedidoService {
     }
 
     // Cancelamento exclusivo do GERENTE, com justificativa, antes da saída
+    @Transactional // Cancelamento e auditoria na mesma transação
     @PreAuthorize("hasRole('GERENTE')")
     public Pedido cancelarPedido(String id, String justificativa) {
         Pedido pedido = buscarPedido(id);
@@ -181,6 +185,7 @@ public class PedidoService {
     }
 
     // Desconto percentual exclusivo do GERENTE, limitado a 20%, antes da saída
+    @Transactional //desconto e auditoria na mesma transação
     @PreAuthorize("hasRole('GERENTE')")
     public Pedido aplicarDesconto(String id, BigDecimal percentual) {
         Pedido pedido = buscarPedido(id);
