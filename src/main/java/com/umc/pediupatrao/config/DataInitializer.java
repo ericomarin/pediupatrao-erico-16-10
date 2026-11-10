@@ -1,19 +1,21 @@
 package com.umc.pediupatrao.config;
 
 import com.umc.pediupatrao.entity.Perfil;
-import com.umc.pediupatrao.entity.Produto;                    // AJUSTE
+import com.umc.pediupatrao.entity.Produto;                    
 import com.umc.pediupatrao.entity.Usuario;
-import com.umc.pediupatrao.repository.ProdutoRepository;      // AJUSTE
+import com.umc.pediupatrao.repository.ProdutoRepository;      
 import com.umc.pediupatrao.repository.UsuarioRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;             
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class DataInitializer {
 
     @Bean
+    @Order(1) // (Dashboard): roda antes do gerador de dados de demonstração, que depende dos produtos
     CommandLineRunner initDatabase(UsuarioRepository repo, ProdutoRepository produtoRepo, PasswordEncoder encoder) {
         return args -> {
             criarSeNaoExistir(repo, encoder, "admin", "teste123", Perfil.ADMIN);
